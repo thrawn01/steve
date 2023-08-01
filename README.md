@@ -1,4 +1,4 @@
-## Steve Jobs
+## Steve Jobs Library
 A tmux/screen like job running system
 
 The idea here is that this library would be used in a service to facilitate starting
@@ -34,7 +34,10 @@ to clients via what ever transport the implementor has choosen, GRPC, HTTP, or W
 The library is designed to allow multiple clients to read from the same buffer
 simultaneously, in this way many clients can monitor the progress of a job in real time.
 
-
+### TODO
+* Test a job finishing without calling Stop()
+* Test a job panic
+* Place a limit on the max size of the buffer written
 
 
 
