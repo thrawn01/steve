@@ -1,5 +1,11 @@
 package steve
 
+// AllocSize is the initial allocation size of the buffer.
+// If the requested capacity is larger than this initial size,
+// then the internal buffer will grow to match the capacity
+// requested as bytes are written.
+const AllocSize = 512
+
 type RingBuffer struct {
 	buffer   []byte
 	capacity int
@@ -8,15 +14,43 @@ type RingBuffer struct {
 }
 
 func NewRingBuffer(capacity int) *RingBuffer {
+	if capacity == 0 {
+		panic("NewRingBuffer: A capacity of zero is not allowed")
+	}
+
+	size := capacity
+	// Only allocate the initial size of bytes at first
+	if size > AllocSize {
+		size = AllocSize
+	}
+
 	return &RingBuffer{
-		// TODO: Don't allocate the entire max capacity all at once.
-		buffer:   make([]byte, capacity),
+		buffer:   make([]byte, size),
 		capacity: capacity,
 		wpos:     0,
 	}
 }
 
 func (r *RingBuffer) Write(b []byte) {
+	// Do we need to consider growing the size of our buffer?
+	if r.capacity != cap(r.buffer) && r.total <= r.capacity {
+		// Is there room in the current buffer for this write?
+		if r.total+len(b) > cap(r.buffer) {
+			size := r.total + len(b)
+			if size < 2*cap(b) {
+				// Avoid making small allocations, go big or go home.
+				size = 2 * cap(b)
+				// But only allocate as much as our max capacity.
+				if size > r.capacity {
+					size = r.capacity
+				}
+			}
+			b2 := make([]byte, size)
+			copy(b2, r.buffer)
+			r.buffer = b2
+		}
+	}
+
 	r.total += len(b)
 	for _, v := range b {
 		r.buffer[r.wpos] = v
@@ -36,6 +70,12 @@ func (r *RingBuffer) Bytes() []byte {
 // buffer.
 func (r *RingBuffer) Offset() int {
 	return r.total
+}
+
+// Capacity returns the total number of bytes allocated for
+// the ring buffer.
+func (r *RingBuffer) Capacity() int {
+	return cap(r.buffer)
 }
 
 func (r *RingBuffer) ReadOffset(offset int) ([]byte, int) {
@@ -77,15 +117,4 @@ func (r *RingBuffer) ReadOffset(offset int) ([]byte, int) {
 	data := make([]byte, r.wpos-pos)
 	copy(data, r.buffer[pos:r.wpos])
 	return data, offset + len(data)
-
-	//if pos < r.rpos || pos >= r.wpos {
-	//	data := make([]byte, r.wpos-r.rpos)
-	//	copy(data, r.buffer[r.rpos:r.wpos])
-	//	//offset = r.wpos
-	//	return data, offset + len(data)
-	//}
-	//
-	//data := make([]byte, r.wpos-pos)
-	//copy(data, r.buffer[pos:r.wpos])
-	//return data, r.wpos
 }
