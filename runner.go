@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -130,7 +129,7 @@ func (r *runner) NewReader(id ID) (io.ReadCloser, error) {
 		defer j.mutex.Unlock()
 		buf := bytes.Buffer{}
 		buf.Write(j.buffer.Bytes())
-		return ioutil.NopCloser(&buf), nil
+		return io.NopCloser(&buf), nil
 	}
 
 	// Create a go routine that sends all unread bytes to the reader then
@@ -146,8 +145,8 @@ func (r *runner) NewReader(id ID) (io.ReadCloser, error) {
 			copy(dst, src[idx:j.buffer.Len()])
 			j.mutex.Unlock()
 
-			// Preform the write outside the mutex as it could block, and we don't
-			// want to hold on to the mutex for long
+			// Preform the Write() outside the mutex as it could block, and we don't
+			// want to hold on to the mutex lock for long
 			n, err := writer.Write(dst)
 			if err != nil {
 				// If the reader called Close() on the pipe
